@@ -4,6 +4,7 @@ import Tkinter
 import xlrd
 from openpyxl import load_workbook
 import openpyxl
+import itchat
 import time
 import sys  
   
@@ -20,7 +21,6 @@ root.resizable(width=False, height=True)#禁止拉伸
 flags=[]
 done_list = []
 content_list =[]
-count=1
 
 def get_item_list_from_excel(item_file):
     item_list = []
@@ -59,24 +59,48 @@ def write_item_list_to_excel(item_file):
     while index<clear:
         index+=1
         wb_sheet.cell(index+1, column = 1, value ='')
-        #print str(done_list)+'2222222222222222222222'+str(content_list)
         wb_sheet.cell(index+1, column = 2, value ='')
 
     row=0#这个包里对excel表的行数从1开始
     while row<len(content_list):
         wb_sheet.cell(row+1, column = 1, value = content_list[row])
-        #print str(done_list)+'11111111111111111111111'+str(content_list)
         wb_sheet.cell(row+1, column = 2, value = flags[row])
-
         row+=1
     wb.save(item_file)#保存
     return 0 
 
 def exit_with_write(root):
     write_item_list_to_excel('items.xlsx')
-    show_state()
+    #sendSms(formed_items())
     root.quit()
 
+def formed_items():
+	items="当前时间：\n"+time.ctime()+'\n'
+	items+="事件列表：\n"
+	row=0
+	while row<len(content_list):
+		if flags[row]:
+			items+="Done_√           "
+		else:
+			items+="Waiting_×           "
+		items+=content_list[row]+'\n'
+		row+=1
+	items+="\n           兰大信息院学生项目\n                              德诺打卡"
+	return items
+
+def sendSms(items):
+	itchat.auto_login(hotReload=True,enableCmdQR=True) #首次扫描登录后后续自动登录
+	print(itchat.search_friends())
+	users = itchat.search_friends(name='儿子')   # 使用备注名来查找实际用户名
+	#获取好友全部信息,返回一个列表,列表内是一个字典
+	print(users)
+	#获取`UserName`,用于发送消息
+	if users:
+		userName = users[0]['UserName']
+		itchat.send(items,toUserName = userName)
+		root.title('微信用户：'+itchat.search_friends()['NickName']+' send to'+users[0]['RemarkName'])
+	else:
+		root.title('微信用户：'+itchat.search_friends()['NickName']+' send to nobody')
 
 def click_done(item):
     loc=content_list.index(item)
@@ -85,17 +109,7 @@ def click_done(item):
         done_list.append(content_list[loc])
     else:
         done_list.remove(content_list[loc])
-    '''
-    str__='\n'
-    c=1
-    for item in done_list:
-        print item
-        str__+=str(c)+'_'+str(item)+'\n'
-        c+=1
-    lab_done['text']=str__
-    '''
     check()
-    show_state()
     return 0
 def check():
     str__='\n'
@@ -104,7 +118,6 @@ def check():
             str__+=str(c)+'_'+str(item)+'\n'
             c+=1
     lab_done['text']=str__
-    show_state()
     return 0
 
 def click_del(item):
@@ -120,20 +133,16 @@ def click_del(item):
     del ck[loc]
     del btns_del[loc]
     del btns_up[loc]
-    show_state()
     return 0
-
 
 def click_up(item):
     loc=content_list.index(item)
     if loc==0:#如果是第一个复选框，不能再上移，啥也不做
-        show_state()
         return 0
     #在content_list和flags中上移
     content_list[loc],content_list[loc-1]=content_list[loc-1],content_list[loc]
     flags[loc],flags[loc-1]=flags[loc-1],flags[loc]
     global ck,btns_up,btns_del
-    show_state('交换')
     #删除事项的复选框、删除键、上移键
     for item in ck:
         item.grid_forget()
@@ -149,7 +158,7 @@ def click_up(item):
     update_ui()
     return 0
 def update_ui():
-    show_state()
+
     #依据新的事项列表新建复选框、按钮
     for item in content_list:
         ck.append(btn_build(item))
@@ -188,7 +197,6 @@ def click_confirm(root_add,item='xxx'):
     ck.append(btn)#添加到按钮列表
     btns_del.append(btn_del)
     btns_up.append(btn_up)
-    show_state('按钮注册')
     btn.grid(row=content_list.index(item),sticky=W)
     btn_del.grid(row=content_list.index(item),column=1)
     btn_up.grid(row=content_list.index(item),column=2)
@@ -209,7 +217,7 @@ def btn_del_up_build(item):
 def get_countdown():
     from datetime import datetime
 #构造一个将来的时间
-    future = datetime.strptime('2019-12-24 8:30:00','%Y-%m-%d %H:%M:%S')
+    future = datetime.strptime('2019-12-23 8:30:00','%Y-%m-%d %H:%M:%S')
 #当前时间
     now = datetime.now()
 #求时间差
@@ -218,20 +226,6 @@ def get_countdown():
     minute = (delta.seconds - hour*60*60)/60
     seconds = delta.seconds - hour*60*60 - minute*60
     return str(delta.days)+'天'+ str(hour)+'小时'+str(minute)+'分钟'+ str(seconds)+'秒'
-def show_state(str_=''):
-    global count
-    '''print "第"+str(str(count))+"次操作————》》》》》》"+str_
-    print "##########逻辑事项注册信息###################"
-    print content_list 
-    print done_list
-    print flags
-    print '----------UI组件注册信息--------------------'
-    print ck
-    print btns_del
-    print btns_up
-    print '----------------事项完成情况-----------------'
-    print type(lab_msg)'''
-    count=count+1
 def click_export():
     root_exp=Tkinter.Tk()
     root_exp.title('确认导出')
@@ -251,12 +245,9 @@ def exp_confirm(root_exp):
                 f.write("未成_×\t\t\t")
             f.write(content_list[row]+'\n')
             row+=1
-
     root_exp.destroy()
 
-
 if __name__ == '__main__':
-
     #窗体控件
     # 标题显示
     lab = Label(root, text='今日事项：')
@@ -290,13 +281,14 @@ if __name__ == '__main__':
         ck[content_list.index(item)].grid(row=content_list.index(item),sticky=NW)
         btn_del.grid(row=content_list.index(item),column=1,sticky=NW)
         btn_up.grid(row=content_list.index(item),column=2,sticky=NW)
-        show_state()
     check()
     btn_add=Button(root,text='新建',command=click_add)
     btn_add.grid(row=2,column=0,sticky=E)
-    btn_export=Button(root,text='导出',command=click_export)
+    btn_wx=Button(root,text='微信提醒',command=lambda:sendSms(formed_items()))
+    btn_wx.grid(row=2,column=1,sticky=E)
+    btn_export=Button(root,text='导出今日',command=click_export)
     btn_export.grid(row=3,column=1,sticky=E)
-    btn_exit=Button(root,text='保存/退出',command=lambda:exit_with_write(root))
+    btn_exit=Button(root,text='保存退出',command=lambda:exit_with_write(root))
     btn_exit.grid(row=4,column=1,sticky=E)
     lab_time=Label(root,text='NOW : '+time.strftime("%b %d %a %Y",time.localtime()))
     lab_time.grid(row=5,column=0)
@@ -315,22 +307,10 @@ if __name__ == '__main__':
 #加入邮件|公众号提醒
 #开机自启
 #后台运行
+#发送短信提醒						
+#加入打赏，支付宝花呗二维码
+#发送微信提醒						完成
+#最小化到右下角托盘
+#自定义函数模块化
 
 
-
-'''写入excel的面向对象方法：
-# class Write_excel(object):
-#     修改excel数据
-#     def __init__(self, filename):
-#         self.filename = filename
-#         self.wb = load_workbook(self.filename)
-#         self.ws = self.wb.active  # 激活sheet
-#
-#     def write(self, row_n, col_n, value):
-#         写入数据，如(2,3,"hello"),第二行第三列写入数据hello
-#         self.ws.cell(row_n, col_n,value )
-#         self.wb.save(self.filename)
-#
-# we = Write_excel("mylogintest.xlsx")
-# we.write(2,2,'pass3')
-'''
