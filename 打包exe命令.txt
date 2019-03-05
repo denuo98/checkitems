@@ -1,0 +1,3 @@
+pyinstaller -F -p "D:\python27\Lib\site-packages" --windowed  --icon="icon.ico" denuo.py
+
+记得要把那几个图标和exe放到一起
